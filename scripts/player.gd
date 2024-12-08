@@ -21,7 +21,7 @@ func _input(event: InputEvent) -> void:
 	if event is InputEventMouseMotion:
 		rotate_y(deg_to_rad(-event.relative.x * mouse_sensitivity))
 		visuals.rotate_y(deg_to_rad(event.relative.x * mouse_sensitivity))
-		camera_mount.rotate_x(deg_to_rad(-event.relative.y * mouse_sensitivity))
+		camera_mount.rotation_degrees.x = clamp(camera_mount.rotation_degrees.x - event.relative.y * mouse_sensitivity, -90, 90)
 	elif event is InputEventKey:
 		if event.is_action_pressed("run"):
 			is_running = true
@@ -31,6 +31,9 @@ func _input(event: InputEvent) -> void:
 			is_running = false
 			speed = WALKING_SPEED
 			movement_animation = "walking"
+		elif event.is_action_pressed("kick"):
+			is_locked = true
+			animation_player.play("kick")
 			
 
 func _physics_process(delta: float) -> void:
@@ -42,12 +45,8 @@ func _physics_process(delta: float) -> void:
 	if Input.is_action_just_pressed("ui_accept") and is_on_floor():
 		velocity.y = JUMP_VELOCITY
 	
-	if is_locked and !animation_player.is_playing():
+	if is_locked and not animation_player.is_playing():
 		is_locked = false
-		
-	if Input.is_action_just_pressed("kick"):
-		is_locked = true
-		animation_player.play("kick")
 
 	# Get the input direction and handle the movement/deceleration.
 	# As good practice, you should replace UI actions with custom gameplay actions.
@@ -57,15 +56,17 @@ func _physics_process(delta: float) -> void:
 		if !is_locked:
 			if animation_player.current_animation != movement_animation:
 				animation_player.play(movement_animation)
-			visuals.look_at(position + direction)
 
+			visuals.rotation.y= lerp(visuals.rotation.y, visuals.rotation.y + (-visuals.global_basis.z).signed_angle_to(direction, Vector3.UP),.6)
+
+			
 		velocity.x = direction.x * speed
 		velocity.z = direction.z * speed
 	else:
-		if !is_locked and animation_player.current_animation != "idle":
+		if not is_locked and animation_player.current_animation != "idle":
 			animation_player.play("idle")
 		velocity.x = move_toward(velocity.x, 0, speed)
 		velocity.z = move_toward(velocity.z, 0, speed)
 	
-	if !is_locked:
+	if not is_locked:
 		move_and_slide()
